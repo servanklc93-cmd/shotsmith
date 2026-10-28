@@ -3,6 +3,7 @@
 
 import { DEFAULT_SCREEN_ASPECT, type Measure, frameFor, place } from './layout';
 import { type Project, captionFor, imageFor } from './project';
+import { deviceClass } from './render';
 import { LIMITS, TARGETS, type Target, locale } from './specs';
 
 export interface Issue {
@@ -60,25 +61,44 @@ export function lint(project: Project, images: Map<string, ImageInfo>, measure: 
   }
 
   const style = project.style;
-  const bg = style.background;
-  const worst = Math.min(contrast(style.textColor, bg.colors[0]), contrast(style.textColor, bg.colors[1]));
-  if (worst < 3) {
-    issues.push({ level: 'warning', message: `Caption contrast is low (${worst.toFixed(1)}:1); aim for at least 3:1 so it reads at thumbnail size` });
-  }
+  const readable = (bg: Project['style']['background'], title: string, subtitle: string, slideNum?: number) => {
+    if (bg.kind === 'image') return;   // can't judge a photo; the dim slider helps
+    const colors = bg.kind === 'solid' ? [bg.colors[0]] : bg.colors;
+    const worstTitle = Math.min(...colors.map((c) => contrast(title, c)));
+    const worstSub = Math.min(...colors.map((c) => contrast(subtitle, c)));
+    // WCAG: 3:1 for large text (titles), 4.5:1 for normal text
+    if (worstTitle < 3) {
+      issues.push({ level: 'warning', slide: slideNum, message: `Title contrast is low (${worstTitle.toFixed(1)}:1); aim for at least 3:1 so it reads at thumbnail size` });
+    }
+    if (worstSub < 4.5) {
+      issues.push({ level: 'warning', slide: slideNum, message: `Subtitle contrast is low (${worstSub.toFixed(1)}:1); aim for at least 4.5:1` });
+    }
+  };
+  readable(style.background, style.textColor, style.subtitleColor);
 
   project.slides.forEach((slide, i) => {
     const num = i + 1;
+    if (slide.background || slide.textColor || slide.subtitleColor) {
+      readable(slide.background ?? style.background, slide.textColor ?? style.textColor, slide.subtitleColor ?? style.subtitleColor, num);
+    }
     for (const lang of project.languages) {
       const own = slide.captions[lang];
       if (lang !== project.languages[0] && (!own || !own.title.trim()) && captionFor(project, slide, lang).title.trim()) {
         issues.push({ level: 'warning', slide: num, lang, message: `No ${locale(lang).name} caption; the ${locale(project.languages[0]).name} one will be used` });
       }
     }
-    const imageId = imageFor(project, slide, project.languages[0]);
-    const image = imageId ? images.get(imageId) : undefined;
-    if (!image) issues.push({ level: 'error', slide: num, message: 'No screenshot yet' });
+    const phoneId = imageFor(project, slide, project.languages[0], 'phone');
+    const tabletId = imageFor(project, slide, project.languages[0], 'tablet');
+    if (targets.some((t) => deviceClass(t.device) === 'phone') && !(phoneId && images.get(phoneId))) {
+      issues.push({ level: 'error', slide: num, message: 'No phone screenshot yet' });
+    }
+    if (targets.some((t) => deviceClass(t.device) === 'tablet') && !(tabletId && images.get(tabletId))) {
+      issues.push({ level: 'error', slide: num, message: 'No tablet screenshot yet: iPad and tablet sizes need their own (a phone screenshot in an iPad frame looks wrong)' });
+    }
 
     for (const t of targets) {
+      const id = deviceClass(t.device) === 'tablet' ? tabletId : phoneId;
+      const image = id ? images.get(id) : undefined;
       const caption = captionFor(project, slide, project.languages[0]);
       const pl = place(t.width, t.height, slide.layout, style, caption, t.device,
         image ? image.width / image.height : undefined, measure);

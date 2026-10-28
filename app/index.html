@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>shotsmith: App Store & Google Play screenshots</title>
+  <meta name="description" content="Design App Store and Google Play screenshots in your browser. Free, open source, nothing leaves your device. Exports every required size, in every language, as fastlane-ready PNGs.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">◆</span> shotsmith</div>
+    <input id="project-name" class="name" aria-label="Project name" spellcheck="false">
+    <div id="languages" class="languages" aria-label="Languages"></div>
+    <div class="actions">
+      <button id="checks-button" class="ghost" title="Store checks"></button>
+      <div class="menu">
+        <button class="ghost" id="file-button">File ▾</button>
+        <div class="menu-items" id="file-menu" hidden>
+          <button data-action="new">New project</button>
+          <button data-action="demo">Load the demo</button>
+          <label>Open project…<input type="file" id="open-file" accept=".shotsmith,.zip" hidden></label>
+          <button data-action="save">Save project file</button>
+        </div>
+      </div>
+      <button id="export-button" class="primary">Export</button>
+    </div>
+  </header>
+
+  <main class="editor">
+    <aside class="slides">
+      <ol id="slide-list"></ol>
+      <label class="add-slides">
+        + Add screenshots
+        <input type="file" id="add-files" accept="image/png,image/jpeg,image/webp" multiple hidden>
+      </label>
+      <p class="hint">or drop images anywhere</p>
+    </aside>
+
+    <section class="stage">
+      <div class="stage-bar">
+        <select id="preview-target" aria-label="Preview size"></select>
+        <span id="preview-size" class="muted"></span>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="preview"></canvas>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <nav class="tabs" role="tablist">
+        <button data-tab="slide" class="active">Slide</button>
+        <button data-tab="style">Style</button>
+        <button data-tab="checks">Checks</button>
+      </nav>
+      <div id="panel-body"></div>
+    </aside>
+  </main>
+
+  <dialog id="export-dialog">
+    <form method="dialog" id="export-form">
+      <h2>Export screenshots</h2>
+      <p class="muted">Rendered at full size in your browser, as PNG without alpha, in fastlane's folder layout.</p>
+      <div id="export-targets" class="export-grid"></div>
+      <h3>Languages</h3>
+      <div id="export-langs" class="chips"></div>
+      <p id="export-summary" class="summary"></p>
+      <progress id="export-progress" max="1" value="0" hidden></progress>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button id="export-go" class="primary" value="default">Download zip</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="drop-overlay" class="drop-overlay" hidden>Drop screenshots to add them</div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

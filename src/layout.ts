@@ -159,7 +159,7 @@ export function place(
     device: {
       rect: { x: deviceX, y: deviceY, w: bodyW, h: bodyH },
       screen: { x: deviceX + bezel, y: deviceY + bezel, w: screenW, h: screenH },
-      rotation: layout === 'tilted' ? -8 : 0,
+      rotation: layout === 'tilted' ? style.tilt : 0,
       frame,
     },
     fullBleed: false,
