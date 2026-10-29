@@ -23,7 +23,6 @@ export interface Style {
   titleWeight: number;
   align: Align;
   frame: Frame;
-  frameColor: string;       // any hex colour
   deviceScale: number;      // device width as a fraction of the canvas width
   shadow: number;           // 0 = none, 1 = strong
   tilt: number;             // degrees, for the tilted layout
@@ -68,15 +67,15 @@ export const FONTS = [
 // every preset keeps its text at 4.5:1 or better against both background
 // colours (tests/colors.test.ts checks this), so captions stay readable
 export const PRESETS: { name: string; style: Partial<Style> }[] = [
-  { name: 'Midnight', style: { background: { kind: 'linear', colors: ['#1b1f3b', '#3a2d6b'], angle: 160 }, textColor: '#ffffff', subtitleColor: '#d6d9f5', frameColor: '#16171a' } },
-  { name: 'Sunset', style: { background: { kind: 'linear', colors: ['#c2410c', '#9d174d'], angle: 150 }, textColor: '#ffffff', subtitleColor: '#fff1e8', frameColor: '#d9dade' } },
-  { name: 'Mint', style: { background: { kind: 'linear', colors: ['#dcf7e7', '#a7e3c6'], angle: 170 }, textColor: '#0b3b2c', subtitleColor: '#14523f', frameColor: '#16171a' } },
-  { name: 'Paper', style: { background: { kind: 'solid', colors: ['#f4f1ea', '#f4f1ea'], angle: 0 }, textColor: '#1c1b19', subtitleColor: '#4a4741', frameColor: '#16171a' } },
-  { name: 'Ocean', style: { background: { kind: 'radial', colors: ['#1d6fb8', '#0b2f6b'], angle: 0 }, textColor: '#ffffff', subtitleColor: '#e8f1ff', frameColor: '#2c3e57' } },
-  { name: 'Mono', style: { background: { kind: 'solid', colors: ['#0d0d0d', '#0d0d0d'], angle: 0 }, textColor: '#f2f2f2', subtitleColor: '#b8b8b8', frameColor: '#d9dade' } },
-  { name: 'Lemon', style: { background: { kind: 'linear', colors: ['#fff6bf', '#ffe066'], angle: 165 }, textColor: '#2b2400', subtitleColor: '#5c4d00', frameColor: '#16171a' } },
-  { name: 'Grape', style: { background: { kind: 'linear', colors: ['#5b21b6', '#86198f'], angle: 140 }, textColor: '#ffffff', subtitleColor: '#f1dcff', frameColor: '#e6d3b3' } },
-  { name: 'Forest', style: { background: { kind: 'radial', colors: ['#166534', '#052e16'], angle: 0 }, textColor: '#f0fdf4', subtitleColor: '#bbf7d0', frameColor: '#16171a' } },
+  { name: 'Midnight', style: { background: { kind: 'linear', colors: ['#1b1f3b', '#3a2d6b'], angle: 160 }, textColor: '#ffffff', subtitleColor: '#d6d9f5' } },
+  { name: 'Sunset', style: { background: { kind: 'linear', colors: ['#c2410c', '#9d174d'], angle: 150 }, textColor: '#ffffff', subtitleColor: '#fff1e8' } },
+  { name: 'Mint', style: { background: { kind: 'linear', colors: ['#dcf7e7', '#a7e3c6'], angle: 170 }, textColor: '#0b3b2c', subtitleColor: '#14523f' } },
+  { name: 'Paper', style: { background: { kind: 'solid', colors: ['#f4f1ea', '#f4f1ea'], angle: 0 }, textColor: '#1c1b19', subtitleColor: '#4a4741' } },
+  { name: 'Ocean', style: { background: { kind: 'radial', colors: ['#1d6fb8', '#0b2f6b'], angle: 0 }, textColor: '#ffffff', subtitleColor: '#e8f1ff' } },
+  { name: 'Mono', style: { background: { kind: 'solid', colors: ['#0d0d0d', '#0d0d0d'], angle: 0 }, textColor: '#f2f2f2', subtitleColor: '#b8b8b8' } },
+  { name: 'Lemon', style: { background: { kind: 'linear', colors: ['#fff6bf', '#ffe066'], angle: 165 }, textColor: '#2b2400', subtitleColor: '#5c4d00' } },
+  { name: 'Grape', style: { background: { kind: 'linear', colors: ['#5b21b6', '#86198f'], angle: 140 }, textColor: '#ffffff', subtitleColor: '#f1dcff' } },
+  { name: 'Forest', style: { background: { kind: 'radial', colors: ['#166534', '#052e16'], angle: 0 }, textColor: '#f0fdf4', subtitleColor: '#bbf7d0' } },
 ];
 
 // quick picks in every colour field
@@ -122,7 +121,6 @@ export function defaultStyle(): Style {
     titleWeight: 800,
     align: 'center',
     frame: 'auto',
-    frameColor: '#16171a',
     deviceScale: 0.78,
     shadow: 0.6,
     tilt: -8,
@@ -167,16 +165,25 @@ export function imageKey(cls: DeviceClass, lang: string | '*'): string {
   return (cls === 'tablet' ? 'tablet:' : '') + lang;
 }
 
+/** Every stored image the project refers to: screenshots and background photos. */
+export function usedImages(p: Project): Set<string> {
+  const ids = new Set(p.slides.flatMap((s) => Object.values(s.images)));
+  for (const bg of [p.style.background, ...p.slides.map((s) => s.background)]) {
+    if (bg?.kind === 'image' && bg.image) ids.add(bg.image);
+  }
+  return ids;
+}
+
 /** Validates and upgrades a project loaded from a file. Throws on garbage. */
 export function parseProject(json: unknown): Project {
   const p = json as Project;
   if (!p || typeof p !== 'object' || p.version !== 1 || !Array.isArray(p.slides) || !Array.isArray(p.languages)) {
     throw new Error('not a shotsmith project');
   }
-  const style = { ...defaultStyle(), ...(p.style ?? {}) } as Style;
-  // earlier files: named frame colours and an on/off shadow
-  const named: Record<string, string> = { black: '#16171a', silver: '#d9dade', gold: '#e6d3b3', blue: '#2c3e57' };
-  if (named[style.frameColor]) style.frameColor = named[style.frameColor];
+  const style = { ...defaultStyle(), ...(p.style ?? {}) } as Style & { frameColor?: unknown };
+  // earlier files: a frame colour (devices now always look like the real
+  // thing) and an on/off shadow
+  delete style.frameColor;
   if (typeof (style.shadow as unknown) === 'boolean') style.shadow = (style.shadow as unknown) ? 0.6 : 0;
   const slides = p.slides.map((s) => ({
     id: typeof s.id === 'string' ? s.id : newId(),

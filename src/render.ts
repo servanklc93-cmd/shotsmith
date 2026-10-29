@@ -121,7 +121,13 @@ function setShadow(ctx: Ctx, strength: number, size: number) {
   ctx.shadowOffsetY = size * 0.035 * strength;
 }
 
-function drawDevice(ctx: Ctx, d: NonNullable<Placement['device']>, color: string, shadow: number,
+// every frame is the same dark finish, like the devices in Apple's and
+// Google's own marketing
+const BODY = '#16171a';
+const EDGE = shade(BODY, 0.22);
+const BUTTON = shade(BODY, 0.08);
+
+function drawDevice(ctx: Ctx, d: NonNullable<Placement['device']>, shadow: number,
   image: ImageSource | undefined, placeholder: string) {
   const { rect, screen, frame } = d;
   ctx.save();
@@ -147,12 +153,7 @@ function drawDevice(ctx: Ctx, d: NonNullable<Placement['device']>, color: string
 
   const spec = FRAMES[frame];
   const w = rect.w;
-  // the edge highlight and the buttons are derived from the chosen colour
-  const dark = luminanceOf(color) < 0.4;
-  const edge = shade(color, dark ? 0.22 : 0.5);
-  const button = shade(color, dark ? 0.08 : -0.12);
-
-  ctx.fillStyle = button;
+  ctx.fillStyle = BUTTON;
   const btn = (x: number, y: number, bw: number, bh: number) => {
     roundRect(ctx, { x, y, w: bw, h: bh }, bw / 2);
     ctx.fill();
@@ -174,12 +175,12 @@ function drawDevice(ctx: Ctx, d: NonNullable<Placement['device']>, color: string
 
   setShadow(ctx, shadow, w);
   roundRect(ctx, rect, w * spec.radius);
-  ctx.fillStyle = color;
+  ctx.fillStyle = BODY;
   ctx.fill();
   ctx.shadowColor = 'transparent';
 
   ctx.lineWidth = Math.max(1, w * 0.006);
-  ctx.strokeStyle = edge;
+  ctx.strokeStyle = EDGE;
   const inset = ctx.lineWidth / 2;
   roundRect(ctx, { x: rect.x + inset, y: rect.y + inset, w: rect.w - 2 * inset, h: rect.h - 2 * inset }, w * spec.radius);
   ctx.stroke();
@@ -201,17 +202,10 @@ function drawDevice(ctx: Ctx, d: NonNullable<Placement['device']>, color: string
     // front camera in the top bezel
     ctx.beginPath();
     ctx.arc(rect.x + rect.w / 2, rect.y + (screen.y - rect.y) / 2, w * 0.007, 0, Math.PI * 2);
-    ctx.fillStyle = shade(color, dark ? 0.15 : -0.35);
+    ctx.fillStyle = shade(BODY, 0.15);
     ctx.fill();
   }
   ctx.restore();
-}
-
-function luminanceOf(hex: string): number {
-  const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-  if (!m) return 0;
-  const [r, g, b] = m.slice(1).map((x) => parseInt(x, 16) / 255);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 export interface RenderInput {
@@ -254,7 +248,7 @@ export function renderSlide(ctx: Ctx, input: RenderInput): Placement {
     return placement;
   }
   const placeholder = cls === 'tablet' ? 'Drop a tablet screenshot' : 'Drop a screenshot';
-  if (placement.device) drawDevice(ctx, placement.device, style.frameColor, style.shadow, image, placeholder);
+  if (placement.device) drawDevice(ctx, placement.device, style.shadow, image, placeholder);
   if (placement.caption) {
     drawText(ctx, placement.caption, {
       title: slide.textColor ?? style.textColor,
@@ -263,4 +257,60 @@ export function renderSlide(ctx: Ctx, input: RenderInput): Placement {
     });
   }
   return placement;
+}
+
+/** The darkest and lightest patches of background behind the caption, so a
+ *  photo background can be checked for contrast like a flat colour. Renders
+ *  only the background, small, and averages it in a grid of cells. */
+export function captionBackdrop(input: RenderInput): string[] | null {
+  const { project, slide, lang, target, images } = input;
+  const k = 240 / target.width;
+  const w = Math.round(target.width * k);
+  const h = Math.round(target.height * k);
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d')!;
+  const style = project.style;
+  const image = images.get(imageFor(project, slide, lang, deviceClass(target.device)) ?? '');
+  const placement = place(target.width, target.height, slide.layout, style, captionFor(project, slide, lang),
+    target.device, image ? image.width / image.height : undefined, measureWith(ctx, style.font, style.titleWeight));
+  if (!placement.caption) return null;
+  ctx.scale(k, k);
+  fillBackground(ctx, slide.background ?? style.background, target.width, target.height, images);
+
+  const r = placement.caption.rect;
+  const x0 = Math.max(0, Math.floor(r.x * k));
+  const y0 = Math.max(0, Math.floor(r.y * k));
+  const x1 = Math.min(w, Math.ceil((r.x + r.w) * k));
+  const y1 = Math.min(h, Math.ceil((r.y + r.h) * k));
+  if (x1 <= x0 || y1 <= y0) return null;
+  const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+  const cols = 8;
+  const rows = 3;
+  const cells: [number, string][] = [];
+  for (let cy = 0; cy < rows; cy++) {
+    for (let cx = 0; cx < cols; cx++) {
+      const ax = Math.floor((cx * data.width) / cols);
+      const bx = Math.max(ax + 1, Math.floor(((cx + 1) * data.width) / cols));
+      const ay = Math.floor((cy * data.height) / rows);
+      const by = Math.max(ay + 1, Math.floor(((cy + 1) * data.height) / rows));
+      const sum = [0, 0, 0];
+      let n = 0;
+      for (let y = ay; y < by && y < data.height; y++) {
+        for (let x = ax; x < bx && x < data.width; x++) {
+          const i = (y * data.width + x) * 4;
+          sum[0] += data.data[i];
+          sum[1] += data.data[i + 1];
+          sum[2] += data.data[i + 2];
+          n++;
+        }
+      }
+      if (!n) continue;
+      const rgb = sum.map((v) => Math.round(v / n));
+      cells.push([0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2],
+        '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('')]);
+    }
+  }
+  if (!cells.length) return null;
+  cells.sort((a, b) => a[0] - b[0]);
+  return [cells[0][1], cells[cells.length - 1][1]];
 }

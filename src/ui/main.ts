@@ -2,9 +2,9 @@ import { type Job, exportZip, plan } from '../export';
 import { type Issue, lint } from '../lint';
 import {
   type Align, type Background, type DeviceClass, FONTS, type Frame, type Layout, PRESETS, type Project, SWATCHES,
-  captionFor, imageFor, imageKey, isHex, newId, newProject, newSlide, normalizeHex,
+  captionFor, imageFor, imageKey, isHex, newId, newProject, newSlide, normalizeHex, usedImages,
 } from '../project';
-import { type ImageSource, deviceClass, measureWith, renderSlide } from '../render';
+import { type ImageSource, captionBackdrop, deviceClass, measureWith, renderSlide } from '../render';
 import { sampleProject } from '../samples';
 import { LOCALES, TARGETS, locale, target } from '../specs';
 import { collectGarbage, images as imageStore, loadProject, packProject, saveProject, unpackProject } from '../storage';
@@ -108,7 +108,7 @@ async function useProject(p: Project, withBlobs?: Map<string, Blob>) {
   images.clear();
   blobs.clear();
   for (const [id, b] of withBlobs ?? []) blobs.set(id, b);
-  await loadImages(new Set(p.slides.flatMap((s) => Object.values(s.images))));
+  await loadImages(usedImages(p));
   lang = p.languages[0];
   current = 0;
   previewTarget = p.targets.find((t) => target(t).store === 'apple') ?? p.targets[0] ?? 'iphone-6.9';
@@ -446,8 +446,6 @@ function stylePanel(): Node[] {
       h('div', { class: 'group-title' }, 'Device'),
       field('Frame', segmented<Frame>([['auto', 'Auto'], ['iphone', 'iPhone'], ['ipad', 'iPad'], ['android', 'Android'], ['none', 'None']], st.frame,
         (v) => { st.frame = v; changed(true); })),
-      colorField('Frame colour', st.frameColor, (v) => { st.frameColor = v; changed(); },
-        ['#16171a', '#3a3c42', '#d9dade', '#f5f5f7', '#e6d3b3', '#c9a77c', '#2c3e57', '#8fa9c7', '#4d3b5c', '#f4c2c2', '#1f4d3a', '#b22222']),
       range('Size', 'deviceScale', 0.55, 0.95, 0.01),
       range('Shadow', 'shadow', 0, 1, 0.05),
       range('Tilt (tilted layout)', 'tilt', -20, 20, 1)),
@@ -472,7 +470,14 @@ function renderPanel() {
 
 function refreshIssues() {
   const ctx = document.createElement('canvas').getContext('2d')!;
-  issues = lint(project, images, measureWith(ctx, project.style.font, project.style.titleWeight));
+  const backdrops = new Map<string, string[]>();
+  const t = target(previewTarget);
+  for (const s of project.slides) {
+    if ((s.background ?? project.style.background).kind !== 'image') continue;
+    const b = captionBackdrop({ project, slide: s, lang: project.languages[0], target: t, images });
+    if (b) backdrops.set(s.id, b);
+  }
+  issues = lint(project, images, measureWith(ctx, project.style.font, project.style.titleWeight), backdrops);
   const errors = issues.filter((i) => i.level === 'error').length;
   const warnings = issues.length - errors;
   const b = $('#checks-button');

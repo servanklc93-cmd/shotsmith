@@ -13,7 +13,6 @@ describe('presets', () => {
         expect(contrast(p.style.textColor!, c), `${p.name} title on ${c}`).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.style.subtitleColor!, c), `${p.name} subtitle on ${c}`).toBeGreaterThanOrEqual(4.5);
       }
-      expect(isHex(p.style.frameColor!)).toBe(true);
     });
   }
 });
@@ -76,10 +75,10 @@ describe('tablet screenshots', () => {
 });
 
 describe('older project files', () => {
-  it('upgrade named frame colours and the on/off shadow', () => {
+  it('drop the old frame colour and upgrade the on/off shadow', () => {
     const p = parseProject({ version: 1, name: 'old', languages: ['en'], slides: [],
       style: { frameColor: 'silver', shadow: true } });
-    expect(p.style.frameColor).toBe('#d9dade');
+    expect('frameColor' in p.style).toBe(false);
     expect(p.style.shadow).toBe(0.6);
   });
 });
