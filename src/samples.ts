@@ -14,23 +14,33 @@ const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", R
 
 type Ctx = CanvasRenderingContext2D;
 
-function base(ctx: Ctx, title: string) {
-  ctx.fillStyle = BG;
-  ctx.fillRect(0, 0, W, H);
+function statusBar(ctx: Ctx, width: number, timeX: number) {
   ctx.fillStyle = INK;
   ctx.font = `600 46px ${FONT}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText('9:41', 120, 92);
+  ctx.fillText('9:41', timeX, 92);
   // battery and signal, roughly
-  ctx.fillRect(W - 210, 78, 18, 28);
-  ctx.fillRect(W - 182, 70, 18, 36);
+  ctx.fillRect(width - 210, 78, 18, 28);
+  ctx.fillRect(width - 182, 70, 18, 36);
   ctx.beginPath();
-  ctx.roundRect(W - 150, 74, 70, 34, 9);
+  ctx.roundRect(width - 150, 74, 70, 34, 9);
   ctx.lineWidth = 4;
   ctx.strokeStyle = INK;
   ctx.stroke();
-  ctx.fillRect(W - 144, 80, 52, 22);
+  ctx.fillRect(width - 144, 80, 52, 22);
+}
+
+// off while a phone screen is drawn inside the iPad one, which has its own
+let phoneStatusBar = true;
+
+function base(ctx: Ctx, title: string) {
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+  if (phoneStatusBar) statusBar(ctx, W, 120);
+  ctx.fillStyle = INK;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
   ctx.font = `800 96px ${FONT}`;
   ctx.fillText(title, 64, 300);
 }
@@ -224,8 +234,6 @@ function tablet(ctx: Ctx, index: number) {
   ctx.fillStyle = INK;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.font = `600 40px ${FONT}`;
-  ctx.fillText('9:41', 60, 60);
   ctx.font = `800 72px ${FONT}`;
   ctx.fillText('Daybreak', 60, 230);
   SECTIONS.forEach((name, i) => {
@@ -257,8 +265,11 @@ function tablet(ctx: Ctx, index: number) {
   ctx.clip();
   ctx.translate(SIDEBAR + (contentW - W * k) / 2, 0);
   ctx.scale(k, k);
+  phoneStatusBar = false;
   SCREENS[index](ctx);
+  phoneStatusBar = true;
   ctx.restore();
+  statusBar(ctx, TW, 60);
 }
 
 async function toPNG(canvas: HTMLCanvasElement): Promise<Blob> {
