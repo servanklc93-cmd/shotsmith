@@ -71,4 +71,17 @@ describe('contrast', () => {
     expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 1);
     expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 1);
   });
+
+  it('checks a photo background against what is actually behind the caption', () => {
+    const { p, images } = project(4);
+    p.style.background = { kind: 'image', colors: ['#000000', '#000000'], angle: 0, image: 'photo' };
+    p.style.textColor = '#ffffff';
+    p.style.subtitleColor = '#ffffff';
+    // not sampled yet: nothing to say
+    expect(messages(lint(p, images, measure))).not.toMatch(/contrast/);
+    const backdrops = new Map([[p.slides[1].id, ['#202020', '#f0f0f0']]]);
+    const issues = lint(p, images, measure, backdrops).filter((i) => /contrast/.test(i.message));
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.every((i) => i.slide === 2)).toBe(true);
+  });
 });

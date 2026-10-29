@@ -35,7 +35,10 @@ export interface ImageInfo {
   height: number;
 }
 
-export function lint(project: Project, images: Map<string, ImageInfo>, measure: Measure): Issue[] {
+// backdrops: for slides on a photo background, the colours actually behind
+// the caption (see captionBackdrop in render.ts), keyed by slide id
+export function lint(project: Project, images: Map<string, ImageInfo>, measure: Measure,
+  backdrops: Map<string, string[]> = new Map()): Issue[] {
   const issues: Issue[] = [];
   const targets = project.targets.map((id) => TARGETS.find((t) => t.id === id)).filter(Boolean) as Target[];
   const n = project.slides.length;
@@ -61,9 +64,10 @@ export function lint(project: Project, images: Map<string, ImageInfo>, measure: 
   }
 
   const style = project.style;
-  const readable = (bg: Project['style']['background'], title: string, subtitle: string, slideNum?: number) => {
-    if (bg.kind === 'image') return;   // can't judge a photo; the dim slider helps
-    const colors = bg.kind === 'solid' ? [bg.colors[0]] : bg.colors;
+  const readable = (bg: Project['style']['background'], title: string, subtitle: string, slideNum?: number, sampled?: string[]) => {
+    const colors = bg.kind === 'image' ? sampled : bg.kind === 'solid' ? [bg.colors[0]] : bg.colors;
+    // a photo we haven't sampled can't be judged
+    if (!colors?.length) return;
     const worstTitle = Math.min(...colors.map((c) => contrast(title, c)));
     const worstSub = Math.min(...colors.map((c) => contrast(subtitle, c)));
     // WCAG: 3:1 for large text (titles), 4.5:1 for normal text
@@ -78,8 +82,9 @@ export function lint(project: Project, images: Map<string, ImageInfo>, measure: 
 
   project.slides.forEach((slide, i) => {
     const num = i + 1;
-    if (slide.background || slide.textColor || slide.subtitleColor) {
-      readable(slide.background ?? style.background, slide.textColor ?? style.textColor, slide.subtitleColor ?? style.subtitleColor, num);
+    const bg = slide.background ?? style.background;
+    if (slide.background || slide.textColor || slide.subtitleColor || bg.kind === 'image') {
+      readable(bg, slide.textColor ?? style.textColor, slide.subtitleColor ?? style.subtitleColor, num, backdrops.get(slide.id));
     }
     for (const lang of project.languages) {
       const own = slide.captions[lang];

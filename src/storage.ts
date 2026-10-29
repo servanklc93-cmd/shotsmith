@@ -1,7 +1,7 @@
 // Persistence, all on this device: the project JSON in localStorage, the
 // screenshots as blobs in IndexedDB. Nothing is uploaded anywhere.
 
-import { type Project, parseProject } from './project';
+import { type Project, parseProject, usedImages } from './project';
 import { unzip, zip } from './zip';
 
 const PROJECT_KEY = 'shotsmith.project.v1';
@@ -51,9 +51,9 @@ export function loadProject(): Project | null {
   }
 }
 
-/** Drops stored images no slide uses any more. */
+/** Drops stored images the project doesn't use any more. */
 export async function collectGarbage(p: Project) {
-  const used = new Set(p.slides.flatMap((s) => Object.values(s.images)));
+  const used = usedImages(p);
   for (const key of await images.keys()) {
     if (!used.has(String(key))) await images.remove(String(key));
   }
@@ -64,7 +64,7 @@ export async function collectGarbage(p: Project) {
 export async function packProject(p: Project, getBlob: (id: string) => Promise<Blob | undefined>): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const entries = [{ name: 'project.json', data: enc.encode(JSON.stringify(p, null, 2)) }];
-  const ids = new Set(p.slides.flatMap((s) => Object.values(s.images)));
+  const ids = usedImages(p);
   for (const id of ids) {
     const blob = await getBlob(id);
     if (blob) entries.push({ name: `images/${id}`, data: new Uint8Array(await blob.arrayBuffer()) });

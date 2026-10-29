@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { plan } from '../src/export';
-import { captionFor, imageFor, newProject, newSlide, parseProject } from '../src/project';
+import { captionFor, imageFor, newProject, newSlide, parseProject, usedImages } from '../src/project';
 
 describe('project', () => {
   it('falls back to the default language', () => {
@@ -44,5 +44,20 @@ describe('export plan', () => {
       'fastlane/metadata/android/tr-TR/images/phoneScreenshots/2.png',
     ]);
     expect(new Set(paths).size).toBe(paths.length);
+  });
+});
+
+describe('usedImages', () => {
+  it('counts background photos, so saving and clean-up keep them', () => {
+    const p = newProject();
+    const s = newSlide('en');
+    s.images['*'] = 'shot';
+    s.images['tablet:*'] = 'pad';
+    s.background = { kind: 'image', colors: ['#000000', '#000000'], angle: 0, image: 'slide-photo' };
+    p.slides.push(s);
+    p.style.background = { kind: 'image', colors: ['#000000', '#000000'], angle: 0, image: 'photo' };
+    expect([...usedImages(p)].sort()).toEqual(['pad', 'photo', 'shot', 'slide-photo']);
+    p.style.background = { kind: 'solid', colors: ['#000000', '#000000'], angle: 0, image: 'photo' };
+    expect(usedImages(p).has('photo')).toBe(false);
   });
 });
