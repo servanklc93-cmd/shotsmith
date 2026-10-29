@@ -205,6 +205,66 @@ function reminders(ctx: Ctx) {
 }
 
 const SCREENS = [today, stats, streaks, reminders];
+const SECTIONS = ['Today', 'Progress', 'Streaks', 'Reminders'];
+
+// iPad 13" in portrait. Like a real iPad app: a sidebar on the left, and the
+// same screen as on the phone, a little larger, on the right.
+const TW = 2064;
+const TH = 2752;
+const SIDEBAR = 620;
+
+function tablet(ctx: Ctx, index: number) {
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, TW, TH);
+
+  ctx.fillStyle = '#fbfbfd';
+  ctx.fillRect(0, 0, SIDEBAR, TH);
+  ctx.fillStyle = '#e4e6ec';
+  ctx.fillRect(SIDEBAR - 2, 0, 2, TH);
+  ctx.fillStyle = INK;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 40px ${FONT}`;
+  ctx.fillText('9:41', 60, 60);
+  ctx.font = `800 72px ${FONT}`;
+  ctx.fillText('Daybreak', 60, 230);
+  SECTIONS.forEach((name, i) => {
+    const y = 360 + i * 130;
+    if (i === index) {
+      ctx.fillStyle = COLORS[3] + '1f';
+      ctx.beginPath();
+      ctx.roundRect(36, y - 52, SIDEBAR - 72, 104, 26);
+      ctx.fill();
+    }
+    ctx.fillStyle = COLORS[i];
+    ctx.beginPath();
+    ctx.arc(100, y, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = i === index ? COLORS[3] : INK;
+    ctx.font = `${i === index ? 700 : 500} 48px ${FONT}`;
+    ctx.fillText(name, 150, y);
+  });
+  ctx.fillStyle = MUTED;
+  ctx.font = `500 36px ${FONT}`;
+  ctx.fillText('7 habits · 318 check-ins', 60, TH - 120);
+
+  // the phone layout, scaled to the content area's height and centred in it
+  const k = TH / H;
+  const contentW = TW - SIDEBAR;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(SIDEBAR, 0, contentW, TH);
+  ctx.clip();
+  ctx.translate(SIDEBAR + (contentW - W * k) / 2, 0);
+  ctx.scale(k, k);
+  SCREENS[index](ctx);
+  ctx.restore();
+}
+
+async function toPNG(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png'));
+}
 
 const CAPTIONS = [
   { en: ['Build habits that stick', 'Small steps, every single day'], tr: ['Kalıcı alışkanlıklar edin', 'Her gün küçük adımlar'] },
@@ -217,20 +277,25 @@ export async function sampleProject(): Promise<{ project: Project; blobs: Map<st
   const project = newProject();
   project.name = 'Daybreak (demo)';
   project.languages = ['en', 'tr'];
+  project.targets = ['iphone-6.9', 'iphone-6.3', 'ipad-13', 'play-phone'];
   const blobs = new Map<string, Blob>();
   for (let i = 0; i < SCREENS.length; i++) {
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    SCREENS[i](canvas.getContext('2d')!);
-    const blob: Blob = await new Promise((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png'));
+    const phone = document.createElement('canvas');
+    phone.width = W;
+    phone.height = H;
+    SCREENS[i](phone.getContext('2d')!);
+    const pad = document.createElement('canvas');
+    pad.width = TW;
+    pad.height = TH;
+    tablet(pad.getContext('2d')!, i);
+
     const slide = newSlide('en', ...CAPTIONS[i].en as [string, string]);
     slide.captions.tr = { title: CAPTIONS[i].tr[0], subtitle: CAPTIONS[i].tr[1] };
     if (i === 2) slide.layout = 'tilted';
-    const id = `sample-${i}`;
-    slide.images['*'] = id;
-    blobs.set(id, blob);
+    slide.images['*'] = `sample-${i}`;
+    slide.images['tablet:*'] = `sample-tablet-${i}`;
+    blobs.set(`sample-${i}`, await toPNG(phone));
+    blobs.set(`sample-tablet-${i}`, await toPNG(pad));
     project.slides.push(slide);
   }
   return { project, blobs };

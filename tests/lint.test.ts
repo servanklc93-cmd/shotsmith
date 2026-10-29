@@ -34,7 +34,7 @@ describe('lint', () => {
   it('flags missing screenshots and required sizes', () => {
     const { p } = project(2, ['iphone-6.9']);
     const m = messages(lint(p, new Map(), measure));
-    expect(m).toMatch(/No screenshot yet/);
+    expect(m).toMatch(/No phone screenshot yet/);
     expect(m).toMatch(/requires the iPhone 6.3"/);
   });
 

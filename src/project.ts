@@ -69,10 +69,10 @@ export const FONTS = [
 // colours (tests/colors.test.ts checks this), so captions stay readable
 export const PRESETS: { name: string; style: Partial<Style> }[] = [
   { name: 'Midnight', style: { background: { kind: 'linear', colors: ['#1b1f3b', '#3a2d6b'], angle: 160 }, textColor: '#ffffff', subtitleColor: '#d6d9f5', frameColor: '#16171a' } },
-  { name: 'Sunset', style: { background: { kind: 'linear', colors: ['#c2410c', '#9d174d'], angle: 150 }, textColor: '#ffffff', subtitleColor: '#ffe4d6', frameColor: '#d9dade' } },
+  { name: 'Sunset', style: { background: { kind: 'linear', colors: ['#c2410c', '#9d174d'], angle: 150 }, textColor: '#ffffff', subtitleColor: '#fff1e8', frameColor: '#d9dade' } },
   { name: 'Mint', style: { background: { kind: 'linear', colors: ['#dcf7e7', '#a7e3c6'], angle: 170 }, textColor: '#0b3b2c', subtitleColor: '#14523f', frameColor: '#16171a' } },
   { name: 'Paper', style: { background: { kind: 'solid', colors: ['#f4f1ea', '#f4f1ea'], angle: 0 }, textColor: '#1c1b19', subtitleColor: '#4a4741', frameColor: '#16171a' } },
-  { name: 'Ocean', style: { background: { kind: 'radial', colors: ['#1d6fb8', '#0b2f6b'], angle: 0 }, textColor: '#ffffff', subtitleColor: '#d4e6ff', frameColor: '#2c3e57' } },
+  { name: 'Ocean', style: { background: { kind: 'radial', colors: ['#1d6fb8', '#0b2f6b'], angle: 0 }, textColor: '#ffffff', subtitleColor: '#e8f1ff', frameColor: '#2c3e57' } },
   { name: 'Mono', style: { background: { kind: 'solid', colors: ['#0d0d0d', '#0d0d0d'], angle: 0 }, textColor: '#f2f2f2', subtitleColor: '#b8b8b8', frameColor: '#d9dade' } },
   { name: 'Lemon', style: { background: { kind: 'linear', colors: ['#fff6bf', '#ffe066'], angle: 165 }, textColor: '#2b2400', subtitleColor: '#5c4d00', frameColor: '#16171a' } },
   { name: 'Grape', style: { background: { kind: 'linear', colors: ['#5b21b6', '#86198f'], angle: 140 }, textColor: '#ffffff', subtitleColor: '#f1dcff', frameColor: '#e6d3b3' } },
